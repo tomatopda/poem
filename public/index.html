@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ink & Verse - 墨韵诗集</title>
+    <!-- 使用 Tailwind CDN 用于快速样式 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              serif: ['"Noto Serif SC"', 'serif'],
+              cursive: ['"Ma Shan Zheng"', 'cursive'],
+              calligraphy: ['"Zhi Mang Xing"', 'cursive'],
+            },
+            colors: {
+              ink: {
+                50: '#f7f7f5',
+                100: '#efefeb',
+                200: '#dcdcd5',
+                300: '#bdbdb0',
+                400: '#9a9a88',
+                500: '#7d7d6a',
+                600: '#636353',
+                700: '#515143',
+                800: '#434339',
+                900: '#3a3a31',
+                950: '#1d1d18',
+              },
+              paper: '#fdfbf7',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #fdfbf7;
+        color: #1d1d18;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #bdbdb0;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #9a9a88;
+      }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@200;300;400;500;700&family=Zhi+Mang+Xing&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- react-scripts 会自动在这里注入 JS，不需要手动写 script 标签 -->
+  </body>
+</html>
