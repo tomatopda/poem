@@ -49,5 +49,21 @@
         "原创"
       ]
     }
+  },
+  {
+    "id": "fa6c5cf8-de29-4847-90aa-70ca6d4517c4",
+    "title": "一首新诗",
+    "author": "",
+    "content": "一首新诗",
+    "layout": "vertical",
+    "theme": "classic",
+    "dateCreated": 1765433346546,
+    "analysis": {
+      "mood": "未知",
+      "commentary": "自作诗篇，意在言外。",
+      "suggestedTags": [
+        "原创"
+      ]
+    }
   }
 ]
