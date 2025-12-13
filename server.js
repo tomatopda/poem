@@ -37,42 +37,71 @@ if (!fs.existsSync(DATA_FILE)) {
 
 const resetSettings = () => {
   const defaultSettings = {
-    passwordHash: hashPassword('ink') // Default password is 'ink'
+    passwordHash: hashPassword('ink'), // Default password is 'ink'
+    siteName: '墨韵诗集',
+    siteEnName: 'Ink & Verse'
   };
-  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(defaultSettings, null, 2), 'utf8');
-  console.log(">> Settings file initialized/reset. Default password is 'ink'");
+  try {
+    fs.writeFileSync(SETTINGS_FILE, JSON.stringify(defaultSettings, null, 2), 'utf8');
+    console.log('\n\x1b[36m%s\x1b[0m', '>>> 密码配置文件已重置 (Settings Reset) <<<');
+    console.log('\x1b[36m%s\x1b[0m', '>>> 默认密码为: ink');
+    console.log('\x1b[36m%s\x1b[0m', '>>> 请在登录后尽快修改密码。\n');
+  } catch (err) {
+    console.error("Critical Error: Could not write settings.json", err);
+  }
 };
 
+// Check settings on startup
 if (!fs.existsSync(SETTINGS_FILE)) {
+  console.log("Settings file not found. Creating new one...");
   resetSettings();
+} else {
+  // Validate existing file
+  try {
+    const data = fs.readFileSync(SETTINGS_FILE, 'utf8');
+    const parsed = JSON.parse(data);
+    // Add missing fields if upgrading from old version
+    if (!parsed.siteName) {
+      parsed.siteName = '墨韵诗集';
+      parsed.siteEnName = 'Ink & Verse';
+      fs.writeFileSync(SETTINGS_FILE, JSON.stringify(parsed, null, 2), 'utf8');
+    }
+  } catch (e) {
+    console.log("Settings file corrupted. Resetting...");
+    resetSettings();
+  }
 }
 
 // --- Auth APIs ---
 
 app.post('/api/login', (req, res) => {
-  console.log(`[Auth] Login attempt received at ${new Date().toLocaleTimeString()}`);
-  
   const { password } = req.body;
   if (!password) return res.status(400).json({ error: 'Password required' });
 
+  // Always read fresh from disk to avoid stale memory state
   fs.readFile(SETTINGS_FILE, 'utf8', (err, data) => {
-    if (err) return res.status(500).json({ error: 'Server error reading settings' });
+    if (err) {
+      console.error("Error reading settings during login:", err);
+      // Try to recover
+      resetSettings();
+      return res.status(500).json({ error: 'Server error. Settings reset to default.' });
+    }
     
     try {
       const settings = JSON.parse(data);
       const inputHash = hashPassword(password);
       
+      console.log(`[Auth] Login attempt. Result: ${inputHash === settings.passwordHash ? 'Success' : 'Failed'}`);
+      
       if (inputHash === settings.passwordHash) {
-        console.log(" > Login Success");
         res.json({ success: true });
       } else {
-        console.log(" > Login Failed: Incorrect password");
         res.status(401).json({ error: 'Incorrect password' });
       }
     } catch (e) {
-      console.error("Settings file corrupted. Resetting...");
+      console.error("Settings file corrupted during login check. Resetting...");
       resetSettings();
-      res.status(500).json({ error: 'Settings file was corrupted and has been reset. Please try login again with default password.' });
+      res.status(500).json({ error: 'Configuration error. Password reset to "ink". Please try again.' });
     }
   });
 });
@@ -83,16 +112,59 @@ app.post('/api/password', (req, res) => {
     return res.status(400).json({ error: 'Password must be at least 4 characters' });
   }
 
-  const newHash = hashPassword(newPassword);
-  const settings = { passwordHash: newHash };
+  fs.readFile(SETTINGS_FILE, 'utf8', (err, data) => {
+    if (err) return res.status(500).json({ error: 'Read error' });
+    
+    const settings = JSON.parse(data);
+    settings.passwordHash = hashPassword(newPassword);
 
-  fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), (err) => {
-    if (err) {
-      console.error("Write settings error:", err);
-      return res.status(500).json({ error: 'Failed to save password' });
+    fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), (err) => {
+      if (err) {
+        console.error("Write settings error:", err);
+        return res.status(500).json({ error: 'Failed to save password' });
+      }
+      console.log(`[Auth] Password updated successfully at ${new Date().toLocaleTimeString()}`);
+      res.json({ success: true });
+    });
+  });
+});
+
+// --- Settings/Config APIs ---
+
+app.get('/api/config', (req, res) => {
+  fs.readFile(SETTINGS_FILE, 'utf8', (err, data) => {
+    if (err) return res.status(500).json({ error: 'Read error' });
+    try {
+      const settings = JSON.parse(data);
+      // Only return public config info
+      res.json({
+        siteName: settings.siteName || '墨韵诗集',
+        siteEnName: settings.siteEnName || 'Ink & Verse'
+      });
+    } catch (e) {
+      res.status(500).json({ error: 'Parse error' });
     }
-    console.log(`[Auth] Password updated successfully at ${new Date().toLocaleTimeString()}`);
-    res.json({ success: true });
+  });
+});
+
+app.post('/api/config', (req, res) => {
+  const { siteName, siteEnName } = req.body;
+  
+  fs.readFile(SETTINGS_FILE, 'utf8', (err, data) => {
+    if (err) return res.status(500).json({ error: 'Read error' });
+    
+    try {
+      const settings = JSON.parse(data);
+      if (siteName) settings.siteName = siteName;
+      if (siteEnName) settings.siteEnName = siteEnName;
+
+      fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), (err) => {
+        if (err) return res.status(500).json({ error: 'Write error' });
+        res.json({ success: true });
+      });
+    } catch(e) {
+      res.status(500).json({ error: 'Parse error' });
+    }
   });
 });
 
@@ -101,8 +173,9 @@ app.post('/api/password', (req, res) => {
 app.get('/api/poems', (req, res) => {
   fs.readFile(DATA_FILE, 'utf8', (err, data) => {
     if (err) {
-      console.error("Read error:", err);
-      return res.status(500).json({ error: 'Failed to read data' });
+      // If file doesn't exist or read error, return empty array but don't crash
+      console.error("Read poems error (might be empty):", err.message);
+      return res.json([]);
     }
     try {
       const json = JSON.parse(data || '[]');
@@ -119,7 +192,10 @@ app.post('/api/poems', (req, res) => {
     return res.status(400).json({ error: 'Invalid poem data' });
   }
 
-  fs.readFile(DATA_FILE, 'utf8', (err, data) => {
+  // Use absolute path for reliability
+  const absPath = path.resolve(DATA_FILE);
+
+  fs.readFile(absPath, 'utf8', (err, data) => {
     let poems = [];
     if (!err && data) {
       try { poems = JSON.parse(data); } catch (e) { poems = []; }
@@ -132,15 +208,15 @@ app.post('/api/poems', (req, res) => {
       poems.push(newPoem);
     }
 
-    fs.writeFile(DATA_FILE, JSON.stringify(poems, null, 2), (err) => {
+    fs.writeFile(absPath, JSON.stringify(poems, null, 2), (err) => {
       if (err) return res.status(500).json({ error: 'Failed to save data' });
       
       // Force update file timestamp so Windows/Git detects the change immediately
       const now = new Date();
-      fs.utimes(DATA_FILE, now, now, (utimesErr) => {
+      fs.utimes(absPath, now, now, (utimesErr) => {
         if (utimesErr) console.error("Warning: Could not update timestamp:", utimesErr);
         
-        console.log(`[Content] Saved to: ${path.resolve(DATA_FILE)}`);
+        console.log(`[Content] Saved to: ${absPath}`);
         res.json({ success: true });
       });
     });
@@ -149,18 +225,20 @@ app.post('/api/poems', (req, res) => {
 
 app.delete('/api/poems/:id', (req, res) => {
   const { id } = req.params;
-  fs.readFile(DATA_FILE, 'utf8', (err, data) => {
+  const absPath = path.resolve(DATA_FILE);
+
+  fs.readFile(absPath, 'utf8', (err, data) => {
     if (err) return res.status(500).json({ error: 'Read error' });
     let poems = [];
     try { poems = JSON.parse(data); } catch(e) {}
 
     const newPoems = poems.filter(p => p.id !== id);
-    fs.writeFile(DATA_FILE, JSON.stringify(newPoems, null, 2), (err) => {
+    fs.writeFile(absPath, JSON.stringify(newPoems, null, 2), (err) => {
       if (err) return res.status(500).json({ error: 'Write error' });
       
       // Force update timestamp
       const now = new Date();
-      fs.utimes(DATA_FILE, now, now, () => {
+      fs.utimes(absPath, now, now, () => {
          console.log(`[Content] Deleted poem: ${id}`);
          res.json({ success: true });
       });

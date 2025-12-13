@@ -1,4 +1,4 @@
-import { Poem } from "../types";
+import { Poem, SiteConfig } from "../types";
 
 // Dynamic Backend URL for Local Editing
 const getBackendUrl = () => {
@@ -44,6 +44,34 @@ export const apiService = {
       if (!response.ok) throw new Error('Update failed');
     } catch (error) {
        throw new Error("在线浏览模式下无法修改密码，请在本地环境操作。");
+    }
+  },
+
+  // --- Site Config ---
+
+  getSiteConfig: async (): Promise<SiteConfig> => {
+    try {
+      const response = await fetch(`${API_URL}/config`);
+      if (response.ok) {
+        return await response.json();
+      }
+      return { siteName: '墨韵诗集', siteEnName: 'Ink & Verse' };
+    } catch (error) {
+      // Fallback
+      return { siteName: '墨韵诗集', siteEnName: 'Ink & Verse' };
+    }
+  },
+
+  updateSiteConfig: async (config: Partial<SiteConfig>): Promise<void> => {
+    try {
+      const response = await fetch(`${API_URL}/config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
+      if (!response.ok) throw new Error("Config update failed");
+    } catch (error) {
+      throw new Error("在线浏览模式下无法修改配置，请在本地环境操作。");
     }
   },
 

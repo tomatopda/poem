@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Poem, ViewState } from './types';
+import { Poem, ViewState, SiteConfig } from './types';
 import { Editor } from './components/Editor';
 import { PoemDisplay } from './components/PoemDisplay';
 import { Button } from './components/Button';
@@ -14,6 +14,14 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPoem, setSelectedPoem] = useState<Poem | null>(null);
   
+  // Site Configuration (Titles)
+  const [siteConfig, setSiteConfig] = useState<SiteConfig>({
+    siteName: '墨韵诗集',
+    siteEnName: 'Ink & Verse'
+  });
+  const [isEditingConfig, setIsEditingConfig] = useState(false);
+  const [tempConfig, setTempConfig] = useState<SiteConfig>({ siteName: '', siteEnName: '' });
+
   // Auth & Security state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -27,22 +35,25 @@ export default function App() {
   const [showPrintGuide, setShowPrintGuide] = useState(false);
   const [isGeneratingEpub, setIsGeneratingEpub] = useState(false);
 
-  // Load poems from Server on mount
+  // Load poems and config on mount
   useEffect(() => {
-    loadPoems();
-  }, []);
-
-  const loadPoems = async () => {
-    try {
+    const init = async () => {
       setIsLoading(true);
-      const data = await apiService.getAllPoems();
-      setPoems(data);
-    } catch (error) {
-      console.error("Failed to load poems from server:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      try {
+        const [poemsData, configData] = await Promise.all([
+          apiService.getAllPoems(),
+          apiService.getSiteConfig()
+        ]);
+        setPoems(poemsData);
+        setSiteConfig(configData);
+      } catch (error) {
+        console.error("Failed to load initial data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    init();
+  }, []);
 
   const handleAdminEntry = () => {
     if (isAuthenticated) {
@@ -70,13 +81,30 @@ export default function App() {
     }
   };
 
+  const handleConfigUpdate = async () => {
+    try {
+      await apiService.updateSiteConfig(tempConfig);
+      setSiteConfig(tempConfig);
+      setIsEditingConfig(false);
+      alert('诗集名称更新成功！');
+    } catch (err: any) {
+      alert(err.message || '更新失败');
+    }
+  };
+
+  const startEditingConfig = () => {
+    setTempConfig(siteConfig);
+    setIsEditingConfig(true);
+  };
+
   const handleSavePoem = async (poem: Poem) => {
     try {
       // Send to Server
       await apiService.savePoem(poem);
       
       // Reload list from server to ensure synchronization
-      await loadPoems();
+      const data = await apiService.getAllPoems();
+      setPoems(data);
 
       setView('admin');
       setSelectedPoem(null);
@@ -121,7 +149,7 @@ export default function App() {
     if (isGeneratingEpub) return;
     setIsGeneratingEpub(true);
     try {
-      await generateEpub(poems);
+      await generateEpub(poems, siteConfig.siteName, siteConfig.siteEnName);
     } catch (error) {
       console.error("EPUB Generation failed", error);
       alert("生成电子书失败，请检查是否有过大的图片或特殊字符。");
@@ -150,7 +178,7 @@ export default function App() {
           className="w-8 h-8 bg-ink-900 rounded-sm flex items-center justify-center text-paper font-serif font-bold text-lg cursor-pointer hover:bg-ink-800 transition-colors"
           onDoubleClick={handleAdminEntry}
         >
-          墨
+          {siteConfig.siteName.charAt(0) || '墨'}
         </div>
         <div 
           className="cursor-pointer"
@@ -159,7 +187,7 @@ export default function App() {
             setView('gallery');
           }}
         >
-          <h1 className="text-xl font-serif font-bold tracking-widest text-ink-900">Ink & Verse</h1>
+          <h1 className="text-xl font-serif font-bold tracking-widest text-ink-900">{siteConfig.siteEnName}</h1>
         </div>
       </div>
       
@@ -174,9 +202,9 @@ export default function App() {
   const renderGallery = () => (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-12">
       <div className="text-center mb-16 space-y-4">
-        <h2 className="text-4xl md:text-5xl font-calligraphy text-ink-800">诗意栖居</h2>
+        <h2 className="text-4xl md:text-5xl font-calligraphy text-ink-800">{siteConfig.siteName}</h2>
         <p className="text-ink-500 font-serif max-w-md mx-auto">
-          Collecting fragments of thought, rendered in ink and pixels.
+          {siteConfig.siteEnName}
         </p>
       </div>
 
@@ -241,7 +269,10 @@ export default function App() {
           <p className="text-ink-500 mt-1">管理诗集内容 (共 {poems.length} 首) - 已连接服务器</p>
         </div>
         <div className="flex flex-wrap gap-3">
-           <Button variant="secondary" onClick={() => setIsChangingPassword(!isChangingPassword)}>
+           <Button variant="secondary" onClick={() => { setIsEditingConfig(!isEditingConfig); setTempConfig(siteConfig); setIsChangingPassword(false); }}>
+            诗集设置
+           </Button>
+           <Button variant="secondary" onClick={() => { setIsChangingPassword(!isChangingPassword); setIsEditingConfig(false); }}>
             {isChangingPassword ? '取消修改' : '修改密码'}
           </Button>
            
@@ -267,6 +298,7 @@ export default function App() {
         </div>
       </div>
 
+      {/* --- Password Change Panel --- */}
       {isChangingPassword && (
         <div className="mb-8 p-6 bg-ink-50 rounded-lg border border-ink-200 animate-in fade-in slide-in-from-top-4">
           <form onSubmit={handlePasswordUpdate} className="flex flex-col sm:flex-row gap-4 items-end">
@@ -282,6 +314,39 @@ export default function App() {
             </div>
             <Button type="submit" disabled={!newPassword}>确认修改</Button>
           </form>
+        </div>
+      )}
+
+      {/* --- Site Config Panel --- */}
+      {isEditingConfig && (
+        <div className="mb-8 p-6 bg-ink-50 rounded-lg border border-ink-200 animate-in fade-in slide-in-from-top-4">
+          <h3 className="text-lg font-serif font-bold mb-4">修改诗集名称</h3>
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="flex-1">
+              <label className="block text-xs font-bold text-ink-500 uppercase tracking-wider mb-2">中文名称 (Site Name)</label>
+              <input 
+                type="text" 
+                value={tempConfig.siteName}
+                onChange={e => setTempConfig({...tempConfig, siteName: e.target.value})}
+                className="w-full p-2 rounded border border-ink-200 focus:ring-2 focus:ring-ink-300 outline-none font-serif"
+                placeholder="例如：墨韵诗集"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-xs font-bold text-ink-500 uppercase tracking-wider mb-2">英文名称 (English Name)</label>
+              <input 
+                type="text" 
+                value={tempConfig.siteEnName}
+                onChange={e => setTempConfig({...tempConfig, siteEnName: e.target.value})}
+                className="w-full p-2 rounded border border-ink-200 focus:ring-2 focus:ring-ink-300 outline-none font-serif"
+                placeholder="例如：Ink & Verse"
+              />
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setIsEditingConfig(false)}>取消</Button>
+            <Button onClick={handleConfigUpdate}>保存设置</Button>
+          </div>
         </div>
       )}
 
@@ -342,7 +407,7 @@ export default function App() {
       
       <div className="mt-6 p-4 bg-ink-50 rounded-lg border border-ink-200 text-sm text-ink-600 font-serif">
         <h4 className="font-bold mb-2">服务器模式运行中</h4>
-        <p>所有数据直接读写至服务器根目录下的 <code>poems.json</code>。</p>
+        <p>所有数据直接读写至服务器根目录下的 <code>poems.json</code> 和 <code>settings.json</code>。</p>
       </div>
     </div>
   );
@@ -356,14 +421,14 @@ export default function App() {
           className="w-8 h-8 md:w-10 md:h-10 bg-ink-900 rounded-sm flex items-center justify-center text-paper font-serif font-bold text-lg md:text-xl cursor-pointer hover:bg-ink-800 transition-colors mb-8 shrink-0"
           onDoubleClick={handleAdminEntry}
         >
-          墨
+          {siteConfig.siteName.charAt(0) || '墨'}
         </div>
 
         <h1 
           className="font-serif font-bold text-ink-900 text-lg tracking-[0.3em] select-none opacity-80" 
           style={{ writingMode: 'vertical-rl' }}
         >
-          Ink & Verse
+          {siteConfig.siteEnName}
         </h1>
 
         <div className="flex-1 w-[1px] bg-gradient-to-b from-transparent via-ink-200 to-transparent my-6"></div>
@@ -398,7 +463,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-paper text-ink-900 font-sans selection:bg-ink-200">
       {/* Book Generation View (Hidden unless printing) */}
-      {isExportingBook && <BookView poems={poems} />}
+      {isExportingBook && <BookView poems={poems} siteName={siteConfig.siteName} siteEnName={siteConfig.siteEnName} />}
 
       {/* Print Instructions Modal */}
       {showPrintGuide && (

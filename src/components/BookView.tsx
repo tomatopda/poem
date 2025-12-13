@@ -4,9 +4,11 @@ import { PoemDisplay } from './PoemDisplay';
 
 interface BookViewProps {
   poems: Poem[];
+  siteName: string;
+  siteEnName: string;
 }
 
-export const BookView: React.FC<BookViewProps> = ({ poems }) => {
+export const BookView: React.FC<BookViewProps> = ({ poems, siteName, siteEnName }) => {
   const date = new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
 
   // Helper: Estimate if a poem is "Long" (likely to exceed 1 page in Vertical mode)
@@ -24,14 +26,14 @@ export const BookView: React.FC<BookViewProps> = ({ poems }) => {
     <div className="print-only">
       {/* Global Print Footer (Fixed on every page) */}
       <div className="print-footer">
-        Ink & Verse • 墨韵诗集
+        {siteEnName} • {siteName}
       </div>
 
       {/* --- Cover Page --- */}
       <div className="flex flex-col items-center justify-center min-h-[90vh] text-center page-break">
         <div className="border-8 border-double border-ink-900 p-16 mb-12">
-           <h1 className="text-6xl font-calligraphy mb-4">墨韵诗集</h1>
-           <p className="text-xl font-serif tracking-[0.5em] uppercase">Ink & Verse</p>
+           <h1 className="text-6xl font-calligraphy mb-4">{siteName}</h1>
+           <p className="text-xl font-serif tracking-[0.5em] uppercase">{siteEnName}</p>
         </div>
         
         <div className="mt-20 font-serif text-ink-600 space-y-4">

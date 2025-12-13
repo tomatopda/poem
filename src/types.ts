@@ -9,6 +9,11 @@ export enum ThemeStyle {
   Nature = 'nature',   // Earthy tones
 }
 
+export interface SiteConfig {
+  siteName: string; // e.g. "墨韵诗集"
+  siteEnName: string; // e.g. "Ink & Verse"
+}
+
 export interface PoemAnalysis {
   mood: string;
   commentary: string; // AI generated appreciation

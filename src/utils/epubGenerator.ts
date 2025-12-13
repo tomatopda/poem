@@ -8,7 +8,7 @@ import { Poem, LayoutMode, ThemeStyle } from '../types';
  * - Uses standard flow layout.
  * - Removes aggressive page-break constraints to allow natural flow.
  */
-export const generateEpub = async (poems: Poem[]): Promise<void> => {
+export const generateEpub = async (poems: Poem[], siteName: string = "墨韵诗集", siteEnName: string = "Ink & Verse"): Promise<void> => {
   const zip = new JSZip();
   const date = new Date().toISOString().split('T')[0];
   const uuid = crypto.randomUUID();
@@ -185,8 +185,8 @@ export const generateEpub = async (poems: Poem[]): Promise<void> => {
   const opfContent = `<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" version="3.0">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-    <dc:title>墨韵诗集 (Ink & Verse)</dc:title>
-    <dc:creator>Ink & Verse</dc:creator>
+    <dc:title>${siteName} (${siteEnName})</dc:title>
+    <dc:creator>${siteEnName}</dc:creator>
     <dc:language>zh-CN</dc:language>
     <dc:identifier id="BookId">urn:uuid:${uuid}</dc:identifier>
     <meta property="dcterms:modified">${new Date().toISOString().split('.')[0]}Z</meta>
@@ -229,10 +229,10 @@ export const generateEpub = async (poems: Poem[]): Promise<void> => {
   <div class="cover-container">
     <div class="cover-box">
       <div class="cover-title">
-        <div class="title-part">墨韵</div>
+        <div class="title-part">${siteName}</div>
         <div class="title-part">诗集</div>
       </div>
-      <p class="cover-subtitle">Ink & Verse</p>
+      <p class="cover-subtitle">${siteEnName}</p>
     </div>
     <p style="margin-top: 3em; font-size: 0.9em; color: #666;">${date}</p>
   </div>
@@ -244,7 +244,7 @@ export const generateEpub = async (poems: Poem[]): Promise<void> => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `墨韵诗集_${date}.epub`;
+  link.download = `${siteName}_${date}.epub`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
