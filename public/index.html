@@ -4,8 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ink & Verse - 墨韵诗集</title>
-    <!-- 使用 Tailwind CDN 用于快速样式 -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@200;300;400;500;700&family=Zhi+Mang+Xing&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         theme: {
@@ -40,6 +42,7 @@
         background-color: #fdfbf7;
         color: #1d1d18;
       }
+      /* Custom scrollbar for a cleaner look */
       ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
@@ -56,57 +59,83 @@
       }
 
       /* --- Print / Export eBook Styles --- */
+      
+      /* 默认在屏幕上隐藏打印专用内容 */
+      .print-only {
+        display: none !important;
+      }
+
       @media print {
         @page {
           size: A4;
-          margin: 0;
+          margin: 20mm;
         }
         
-        body {
+        /* 强制背景白 */
+        body, #root, #root > div {
           background-color: white !important;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
+          margin: 0;
+          padding: 0;
+          height: auto !important;
+          overflow: visible !important;
         }
 
-        /* 打印时隐藏所有被标记为 no-print 的元素 (即网页主界面) */
+        /* 隐藏带有 no-print 类的元素 (即网页 UI) */
         .no-print {
           display: none !important;
         }
 
-        /* 打印时显示电子书容器 */
-        .print-container {
+        /* 显示打印专用内容 */
+        .print-only {
           display: block !important;
           width: 100%;
-          background-color: white;
           position: absolute;
           top: 0;
           left: 0;
           z-index: 9999;
+          font-size: 12pt;
         }
 
-        .book-page {
-          width: 210mm;
-          height: 297mm;
+        /* 打印辅助类 */
+        .page-break {
           page-break-after: always;
           break-after: page;
-          position: relative;
-          overflow: hidden;
-          background-color: white;
         }
         
-        /* 避免最后一个页面产生多余的空白页 */
-        .book-page:last-child {
-          page-break-after: auto;
-          break-after: auto;
+        .avoid-break {
+          page-break-inside: avoid;
+          break-inside: avoid;
+        }
+
+        /* 页脚 */
+        .print-footer {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 10mm;
+          text-align: center;
+          font-size: 9pt;
+          color: #999;
+          border-top: 1px solid #eee;
+          padding-top: 2mm;
         }
       }
     </style>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@200;300;400;500;700&family=Zhi+Mang+Xing&display=swap" rel="stylesheet">
-  </head>
+  <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.32.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "jszip": "https://ga.jspm.io/npm:jszip@3.10.1/lib/index.js"
+  }
+}
+</script>
+</head>
   <body>
     <div id="root"></div>
-    <!-- react-scripts 会自动在这里注入 JS，不需要手动写 script 标签 -->
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>

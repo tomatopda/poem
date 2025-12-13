@@ -6,6 +6,7 @@ import { Button } from './components/Button';
 import { PasswordModal } from './components/PasswordModal';
 import { BookView } from './components/BookView';
 import { apiService } from './services/apiService';
+import { generateEpub } from './utils/epubGenerator';
 
 export default function App() {
   const [view, setView] = useState<ViewState>('gallery');
@@ -23,6 +24,8 @@ export default function App() {
 
   // Export State
   const [isExportingBook, setIsExportingBook] = useState(false);
+  const [showPrintGuide, setShowPrintGuide] = useState(false);
+  const [isGeneratingEpub, setIsGeneratingEpub] = useState(false);
 
   // Load poems from Server on mount
   useEffect(() => {
@@ -106,21 +109,43 @@ export default function App() {
     }
   };
 
-  const handleExportBook = () => {
+  // --- Export Functions ---
+
+  const handleExportBookClick = () => {
+    // Legacy Print to PDF
     setIsExportingBook(true);
-    // Allow React to render the BookView, then trigger print
+    setShowPrintGuide(true);
+  };
+
+  const handleExportEpub = async () => {
+    if (isGeneratingEpub) return;
+    setIsGeneratingEpub(true);
+    try {
+      await generateEpub(poems);
+    } catch (error) {
+      console.error("EPUB Generation failed", error);
+      alert("生成电子书失败，请检查是否有过大的图片或特殊字符。");
+    } finally {
+      setIsGeneratingEpub(false);
+    }
+  };
+
+  const executePrint = () => {
+    setShowPrintGuide(false);
     setTimeout(() => {
       window.print();
-      // Auto-hide export mode after print dialog closes (approximate)
-      // We keep it rendered but hidden on screen so the user doesn't see a flash
-      setTimeout(() => setIsExportingBook(false), 1000); 
-    }, 500);
+      setTimeout(() => setIsExportingBook(false), 2000); 
+    }, 300);
+  };
+
+  const cancelPrint = () => {
+    setShowPrintGuide(false);
+    setIsExportingBook(false);
   };
 
   const renderHeader = () => (
     <header className="sticky top-0 z-50 bg-paper/90 backdrop-blur-md border-b border-ink-200 px-6 py-4 flex items-center justify-between">
       <div className="flex items-center gap-3 select-none">
-        {/* Hidden Admin Trigger: Double Click the Logo. Hint removed. */}
         <div 
           className="w-8 h-8 bg-ink-900 rounded-sm flex items-center justify-center text-paper font-serif font-bold text-lg cursor-pointer hover:bg-ink-800 transition-colors"
           onDoubleClick={handleAdminEntry}
@@ -219,10 +244,23 @@ export default function App() {
            <Button variant="secondary" onClick={() => setIsChangingPassword(!isChangingPassword)}>
             {isChangingPassword ? '取消修改' : '修改密码'}
           </Button>
-           {/* Export PDF Book Button */}
-           <Button variant="secondary" onClick={handleExportBook} title="生成PDF打印版">
-             📖 导出诗集 (PDF)
+           
+           {/* New EPUB eBook Export */}
+           <Button 
+             variant="primary" 
+             onClick={handleExportEpub} 
+             title="生成 EPUB 电子书" 
+             className="bg-ink-700"
+             isLoading={isGeneratingEpub}
+           >
+             📖 导出电子书 (EPUB)
            </Button>
+
+           {/* Legacy Print */}
+           <Button variant="secondary" onClick={handleExportBookClick} title="打印或保存为PDF">
+             🖨️ 打印/PDF
+           </Button>
+
           <Button onClick={() => { setSelectedPoem(null); setView('editor'); }}>
             + 新建诗歌
           </Button>
@@ -314,7 +352,6 @@ export default function App() {
       
       {/* Sidebar: Title & Navigation (Fixed Left) */}
       <div className="w-16 md:w-24 shrink-0 flex flex-col items-center py-6 border-r border-ink-200 bg-paper z-30 h-full">
-        {/* Admin Trigger (Logo). Hint removed. */}
         <div 
           className="w-8 h-8 md:w-10 md:h-10 bg-ink-900 rounded-sm flex items-center justify-center text-paper font-serif font-bold text-lg md:text-xl cursor-pointer hover:bg-ink-800 transition-colors mb-8 shrink-0"
           onDoubleClick={handleAdminEntry}
@@ -322,7 +359,6 @@ export default function App() {
           墨
         </div>
 
-        {/* Vertical Site Title */}
         <h1 
           className="font-serif font-bold text-ink-900 text-lg tracking-[0.3em] select-none opacity-80" 
           style={{ writingMode: 'vertical-rl' }}
@@ -330,10 +366,8 @@ export default function App() {
           Ink & Verse
         </h1>
 
-        {/* Decorative Divider */}
         <div className="flex-1 w-[1px] bg-gradient-to-b from-transparent via-ink-200 to-transparent my-6"></div>
 
-        {/* Vertical Return Button */}
         <button 
           onClick={() => setView('gallery')}
           className="group flex flex-col items-center gap-4 opacity-60 hover:opacity-100 transition-all duration-300 pb-4 shrink-0"
@@ -348,7 +382,6 @@ export default function App() {
         </button>
       </div>
 
-      {/* Main Content Area */}
       <div className="flex-1 h-full overflow-y-auto bg-ink-50 flex justify-center items-start p-2 sm:p-6 md:p-10">
         <div className="w-full max-w-5xl">
           {selectedPoem && (
@@ -366,6 +399,36 @@ export default function App() {
     <div className="min-h-screen bg-paper text-ink-900 font-sans selection:bg-ink-200">
       {/* Book Generation View (Hidden unless printing) */}
       {isExportingBook && <BookView poems={poems} />}
+
+      {/* Print Instructions Modal */}
+      {showPrintGuide && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-ink-900/80 backdrop-blur-sm transition-opacity no-print">
+          <div className="bg-white rounded-lg shadow-2xl w-full max-w-md overflow-hidden p-8 text-center space-y-6">
+            <div className="w-16 h-16 bg-ink-100 rounded-full flex items-center justify-center mx-auto text-3xl">
+              🖨️
+            </div>
+            <div>
+              <h3 className="text-2xl font-serif font-bold text-ink-900 mb-2">如何保存为 PDF?</h3>
+              <p className="text-ink-600 leading-relaxed">
+                在接下来的打印窗口中，请将<br/>
+                <span className="font-bold text-ink-900">“目标打印机”</span> 设置为 <span className="font-bold text-ink-900">“另存为 PDF”</span>
+              </p>
+            </div>
+            
+            <div className="bg-ink-50 p-4 rounded text-sm text-ink-500 text-left space-y-1">
+              <p>1. 点击下方“开始导出”。</p>
+              <p>2. 系统打印窗口弹出。</p>
+              <p>3. 目标选择 "Save to PDF" 或 "另存为 PDF"。</p>
+              <p>4. 点击保存，即可下载到电脑。</p>
+            </div>
+
+            <div className="flex gap-4 pt-2">
+              <Button variant="ghost" onClick={cancelPrint} className="flex-1">取消</Button>
+              <Button onClick={executePrint} className="flex-1">开始导出</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main UI Wrapper: Hidden when printing via CSS */}
       <div className={isExportingBook ? 'no-print' : 'no-print-if-exporting'}>
