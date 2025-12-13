@@ -4,10 +4,16 @@ import { Poem, LayoutMode, ThemeStyle } from '../types';
 interface PoemDisplayProps {
   poem: Poem;
   previewMode?: boolean;
+  printMode?: boolean;
   className?: string;
 }
 
-export const PoemDisplay: React.FC<PoemDisplayProps> = ({ poem, previewMode = false, className = '' }) => {
+export const PoemDisplay: React.FC<PoemDisplayProps> = ({ 
+  poem, 
+  previewMode = false, 
+  printMode = false,
+  className = '' 
+}) => {
   // Theme configuration
   const themeClasses = {
     [ThemeStyle.Classic]: "bg-paper text-ink-900",
@@ -19,26 +25,32 @@ export const PoemDisplay: React.FC<PoemDisplayProps> = ({ poem, previewMode = fa
 
   return (
     <div 
-      className={`relative overflow-hidden shadow-2xl transition-all duration-500 flex flex-col ${themeClasses[poem.theme]} ${previewMode ? 'h-full' : 'w-full max-w-2xl mx-auto rounded-lg my-8'} ${className}`}
+      className={`relative overflow-hidden transition-all duration-500 flex flex-col ${themeClasses[poem.theme]} 
+      ${previewMode ? 'h-full' : ''} 
+      ${printMode ? 'w-full h-full border border-ink-200' : 'w-full max-w-2xl mx-auto rounded-lg my-8 shadow-2xl'}
+      ${className}`}
     >
-      {/* Texture Overlay */}
+      {/* Texture Overlay - 在打印模式下降低不透明度或保持原样 */}
       <div className="absolute inset-0 pointer-events-none opacity-10 mix-blend-multiply z-0" 
            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E")` }}>
       </div>
 
       {/* Image Section */}
       {poem.imageUrl && (
-        <div className={`relative z-10 ${previewMode ? 'h-1/3' : 'h-72 sm:h-96 bg-black/5'} w-full shrink-0 flex items-center justify-center overflow-hidden`}>
+        <div className={`relative z-10 ${previewMode ? 'h-1/3' : (printMode ? 'h-64' : 'h-72 sm:h-96 bg-black/5')} w-full shrink-0 flex items-center justify-center overflow-hidden`}>
           <img 
             src={poem.imageUrl} 
             alt="Poem illustration" 
-            className="w-full h-full object-contain opacity-95 transition-transform duration-1000 hover:scale-[1.02]"
+            className="w-full h-full object-contain opacity-95"
           />
         </div>
       )}
 
       {/* Content Section */}
-      <div className={`relative z-10 flex-grow p-4 sm:p-8 flex flex-col items-center w-full ${previewMode ? '' : 'min-h-[450px] overflow-hidden'} ${isVertical ? 'justify-start pt-10' : 'justify-center'}`}>
+      <div className={`relative z-10 flex-grow p-4 sm:p-8 flex flex-col items-center w-full 
+        ${previewMode ? '' : (printMode ? 'overflow-visible' : 'min-h-[450px] overflow-hidden')} 
+        ${isVertical ? 'justify-start pt-10' : 'justify-center'}`}
+      >
         
         {/* Scrollable Container */}
         <div 
@@ -46,7 +58,7 @@ export const PoemDisplay: React.FC<PoemDisplayProps> = ({ poem, previewMode = fa
           className={`
             relative max-w-full
             ${isVertical 
-              ? `overflow-x-auto w-full pb-6` 
+              ? `w-full pb-6` 
               : 'w-full flex justify-center'
             }
           `}

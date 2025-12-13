@@ -4,6 +4,7 @@ import { Editor } from './components/Editor';
 import { PoemDisplay } from './components/PoemDisplay';
 import { Button } from './components/Button';
 import { PasswordModal } from './components/PasswordModal';
+import { BookView } from './components/BookView';
 import { apiService } from './services/apiService';
 
 export default function App() {
@@ -19,6 +20,9 @@ export default function App() {
   // Password change state
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [newPassword, setNewPassword] = useState('');
+
+  // Export State
+  const [isExportingBook, setIsExportingBook] = useState(false);
 
   // Load poems from Server on mount
   useEffect(() => {
@@ -100,6 +104,17 @@ export default function App() {
         alert("删除失败，请检查服务器连接。");
       }
     }
+  };
+
+  const handleExportBook = () => {
+    setIsExportingBook(true);
+    // Allow React to render the BookView, then trigger print
+    setTimeout(() => {
+      window.print();
+      // Auto-hide export mode after print dialog closes (approximate)
+      // We keep it rendered but hidden on screen so the user doesn't see a flash
+      setTimeout(() => setIsExportingBook(false), 1000); 
+    }, 500);
   };
 
   const renderHeader = () => (
@@ -204,6 +219,10 @@ export default function App() {
            <Button variant="secondary" onClick={() => setIsChangingPassword(!isChangingPassword)}>
             {isChangingPassword ? '取消修改' : '修改密码'}
           </Button>
+           {/* Export PDF Book Button */}
+           <Button variant="secondary" onClick={handleExportBook} title="生成PDF打印版">
+             📖 导出诗集 (PDF)
+           </Button>
           <Button onClick={() => { setSelectedPoem(null); setView('editor'); }}>
             + 新建诗歌
           </Button>
@@ -345,30 +364,36 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-paper text-ink-900 font-sans selection:bg-ink-200">
-      {/* Hide standard header in details/editor view */}
-      {view !== 'editor' && view !== 'details' && renderHeader()}
-      
-      {view === 'gallery' && renderGallery()}
-      
-      {view === 'admin' && renderAdmin()}
+      {/* Book Generation View (Hidden unless printing) */}
+      {isExportingBook && <BookView poems={poems} />}
 
-      {view === 'editor' && (
-        <Editor 
-          onSave={handleSavePoem} 
-          onCancel={() => {
-              setView(isAuthenticated ? 'admin' : 'gallery'); 
-          }} 
-          initialData={selectedPoem} 
+      {/* Main UI Wrapper: Hidden when printing via CSS */}
+      <div className={isExportingBook ? 'no-print' : 'no-print-if-exporting'}>
+        {/* Hide standard header in details/editor view */}
+        {view !== 'editor' && view !== 'details' && renderHeader()}
+        
+        {view === 'gallery' && renderGallery()}
+        
+        {view === 'admin' && renderAdmin()}
+
+        {view === 'editor' && (
+          <Editor 
+            onSave={handleSavePoem} 
+            onCancel={() => {
+                setView(isAuthenticated ? 'admin' : 'gallery'); 
+            }} 
+            initialData={selectedPoem} 
+          />
+        )}
+        
+        {view === 'details' && renderDetails()}
+
+        <PasswordModal 
+          isOpen={showPasswordModal} 
+          onClose={() => setShowPasswordModal(false)}
+          onSuccess={handleAuthSuccess}
         />
-      )}
-      
-      {view === 'details' && renderDetails()}
-
-      <PasswordModal 
-        isOpen={showPasswordModal} 
-        onClose={() => setShowPasswordModal(false)}
-        onSuccess={handleAuthSuccess}
-      />
+      </div>
     </div>
   );
 }
